@@ -1,0 +1,54 @@
+{
+  "tests": [
+    {
+      "name": "Value Iteration",
+      "setup": "sudo -H pip3 install pytest gymnasium[toy_text]==0.29.1",
+      "run": "pytest -k test_value_iteration",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 10,
+      "points": 25
+    },
+    {
+      "name": "Policy Iteration",
+      "setup": "sudo -H pip3 install pytest",
+      "run": "pytest -k test_policy_iteration",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 10,
+      "points": 25
+    },
+    {
+      "name": "Epsilon Greedy Policy",
+      "setup": "",
+      "run": "pytest -k test_epsilon_greedy_policy",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 10,
+      "points": 10
+    },
+    {
+      "name": "Q Learning",
+      "setup": "",
+      "run": "pytest -k test_Q_learning",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 10,
+      "points": 20
+    },
+    {
+      "name": "Sarsa",
+      "setup": "",
+      "run": "pytest -k test_Sarsa",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 10,
+      "points": 20
+    }
+  ]
+}
