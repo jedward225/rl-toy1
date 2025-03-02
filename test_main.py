@@ -141,3 +141,9 @@ def test_Sarsa():
         
         print(f'Test {k} passed!')
         
+if __name__ == '__main__':
+    test_value_iteration()
+    test_policy_iteration()
+    test_epsilon_greedy_policy()
+    test_Q_learning()
+    test_Sarsa()
