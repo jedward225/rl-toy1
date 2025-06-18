@@ -3,211 +3,120 @@ import numpy as np
 import gymnasium as gym
 from gymnasium.wrappers import TimeLimit
 
-
 """
-For Q_learning, Sarsa
-the parameters nS, nA, gamma are defined as follows:
-
-	nS: int
-		number of states in the environment
-	nA: int
-		number of actions in the environment
-	gamma: float
-		Discount factor. Number in range [0, 1)
-    alpha: float
-        Learning step rate for Q-learning and Sarsa
-    state: int
-        denotes the current state (in range [0, nS - 1])
-    action: int
-        denotes the action we take at current state (in range [0, nA - 1])
-    next_state: int
-        denotes the state we transition to (in range [0, nS - 1])
-    next_action: int
-        denotes the action we are going to take at the next state(in range [0, nA - 1])
-    reward: int
-        either 0 or 1, the reward for transitioning from "state" to "next_state" with "action"
-    terminal: bool
-        True when "next_state" is a terminal state (hole or goal), False otherwise
+For Q_learning_step, Sarsa_step:
+  nS: int, 状态数
+  nA: int, 动作数
+  gamma: float, 折扣因子 [0,1)
+  alpha: float, 学习率
+  state, next_state: int, 当前/下一个状态
+  action, next_action: int, 当前/下一个动作
+  reward: int, 0 或 1
+  terminal: bool, 是否终止
 """
-
 
 def epsilon_greedy_policy(nS, nA, Q_function, eps=0.5):
-    """Get the epsilon greedy policy from the current Q function.
-
-    Parameters
-    ----------
-    nS, nA: defined at the beginning of the file
-    Q_function: np.array[nS][nA]
-        The current Q value for the given state and action
-    eps: float
-        The exploration factor epsilon
-    Returns
-    -------
-    policy: np.array[nS][nA]
-        An array of floats, policy[s][a] is the posibility of taking action a at state s
-    """
-
+    """返回 epsilon-贪心策略矩阵，shape: [nS, nA]"""
     policy = np.zeros((nS, nA))
-
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-
-
-    ############################
-
+    for s in range(nS):
+        # 基础概率
+        policy[s, :] = eps / nA
+        # 贪婪动作
+        best_a = np.argmax(Q_function[s, :])
+        policy[s, best_a] += 1.0 - eps
     return policy
 
-
 def sample_action(policy, state):
-    """Sample action to take at state s according to the current policy
-
-    Parameters
-    ----------
-    policy: np.array[nS][nA]
-        An array of floats, policy[s][a] is the possibility of taking action a at state s
-    state: int
-        Current state to take action
-    Returns
-    -------
-    action: int
-        The action to take at state s
-    """
-
-    action = 0
-
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-
-
-    ############################
-
-    return action
-
+    """根据给定策略分布 sample 一个动作"""
+    return np.random.choice(policy.shape[1], p=policy[state])
 
 def Q_learning_step(Q_function, state, action, reward, next_state, next_action, terminal, alpha, gamma):
-    """Update the Q function through Q learning algorithm.
-
-    Parameters
-    ----------
-    state, action, reward, next_state, terminal, alpha: defined at the beginning of the file
-    Q_function: np.array[nS][nA]
-        The current Q value for the given state and action
-    Returns
-    -------
-    next_Q_function: np.array[nS][nA]
-        The updated Q value through one step Q learning.
     """
-
-    next_Q_function = np.zeros(Q_function.shape)
-
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-
-
-    ############################
-
-    return next_Q_function
-
+    Q-learning 更新:
+    Q(s,a) ← Q(s,a) + alpha*(r + gamma*max_a' Q(s',a') - Q(s,a))
+    """
+    # 拷贝一份
+    next_Q = Q_function.copy()
+    # 目标值
+    target = reward
+    if not terminal:
+        target += gamma * np.max(Q_function[next_state, :])
+    # 更新
+    next_Q[state, action] += alpha * (target - Q_function[state, action])
+    return next_Q
 
 def Sarsa_step(Q_function, state, action, reward, next_state, next_action, terminal, alpha, gamma):
-    """Update the Q function through Sarsa algorithm.
-
-    Parameters
-    ----------
-    state, action, reward, next_state, terminal, alpha: defined at the beginning of the file
-    Q_function: np.array[nS][nA]
-        The current Q value for the given state and action
-    Returns
-    -------
-    next_Q_function: np.array[nS][nA]
-        The updated Q value through one step Sarsa.
     """
-
-    next_Q_function = np.zeros(Q_function.shape)
-
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-
-
-    ############################
-
-    return next_Q_function
-
+    SARSA 更新:
+    Q(s,a) ← Q(s,a) + alpha*(r + gamma*Q(s',a') - Q(s,a))
+    """
+    next_Q = Q_function.copy()
+    target = reward
+    if not terminal:
+        target += gamma * Q_function[next_state, next_action]
+    next_Q[state, action] += alpha * (target - Q_function[state, action])
+    return next_Q
 
 def learn(learning_step, episodes=5000, max_steps=100, alpha=0.8, gamma=0.9):
     """
-    This function does not need to be modified.
-    Perform Q learning or Sarsa learning and return the resulted Q function
+    执行 Q-learning 或 SARSA 训练，返回Q表和贪婪策略
     """
-    # make training environment, render as ansi blocks
     env = gym.make('FrozenLake-v1', render_mode='ansi', is_slippery=False)
-    # the environment will stop and return truncated=True in case it gets stuck
-    env = TimeLimit(env, max_steps)
+    env = TimeLimit(env, max_episode_steps=max_steps)
 
     nS, nA = env.observation_space.n, env.action_space.n
-    Q_function = np.zeros((nS, nA))
-    
-    # annal the epsilon to estimate a GLIE policy
-    eps_annaling = 1 / episodes
+    Q = np.zeros((nS, nA))
 
-    # loop for training episodes
-    for episode in range(episodes):
+    # GLIE eps 衰减
+    eps_decay = 1.0 / episodes
+
+    for ep in range(episodes):
         state, _ = env.reset()
-        terminal, truncated = False, False
+        terminal = False
 
-        while True:
-            policy = epsilon_greedy_policy(nS, nA, Q_function, eps=1 - episode * eps_annaling)
+        eps = max(0.01, 1.0 - ep * eps_decay)
+        while not terminal:
+            # 1. epsilon-贪心选择
+            policy = epsilon_greedy_policy(nS, nA, Q, eps)
             action = sample_action(policy, state)
 
-            next_state, reward, terminal, truncated, _ = env.step(action)  
+            # 2. 与环境交互
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            terminal = terminated or truncated
             next_action = sample_action(policy, next_state)
-            Q_function = learning_step(Q_function, state, action, reward, next_state, next_action, terminal, alpha, gamma)
-            
-            state = next_state
-        
-            if terminal or truncated:
-                break
-    
-    return Q_function, Q_function.argmax(axis=1)
 
+            # 3. 更新 Q 表
+            Q = learning_step(Q, state, action, reward, next_state, next_action, terminal, alpha, gamma)
+
+            state = next_state
+
+    # 最终策略为贪婪策略
+    final_policy = np.argmax(Q, axis=1)
+    return Q, final_policy
 
 def render_single(env, policy, max_steps=100):
-    """This function does not need to be modified.
-    Renders policy once on environment. Watch your agent play!
-
-    Parameters
-    ----------
-    env: gym.core.Environment
-        Environment to play on. Must have nS, nA, and P as attributes.
-    policy: np.array of shape [env.nS]
-        The action to take at a given state
-    """
-
+    """渲染一次策略执行过程"""
     episode_reward = 0
     state, _ = env.reset()
-    while True:
+    for _ in range(max_steps):
         env.render()
         time.sleep(0.25)
         action = policy[state]
-        state, reward, terminal, truncated, _ = env.step(action)
+        state, reward, terminated, truncated, _ = env.step(action)
         episode_reward += reward
-        if terminal or truncated:
+        if terminated or truncated:
             break
     env.render()
-    if not terminal:
-        print("The agent didn't reach a terminal state in {} steps.".format(max_steps))
-    else:
-        print("Episode reward: %f" % episode_reward)
+    print("Episode reward: %.2f" % episode_reward)
 
-
-# You may change the parameters in the functions below
 if __name__ == "__main__":
-    env = gym.make("FrozenLake-v1", render_mode="human", is_slippery=False)
+    # Q-learning 训练 & 演示
+    Q_q, p_q = learn(Q_learning_step, episodes=5000, alpha=0.8, gamma=0.9)
+    print("Q-learning 最终策略:", p_q)
+    env = gym.make('FrozenLake-v1', render_mode='human', is_slippery=False)
+    render_single(env, p_q)
 
-    print("\n" + "-" * 25 + "\nBeginning Q Learning\n" + "-" * 25)
-    Q_function, p_q_learning = learn(Q_learning_step, alpha=0.8, gamma=0.9)
-    render_single(env, p_q_learning)
-
-    print("\n" + "-" * 25 + "\nBeginning Sarsa\n" + "-" * 25)
-    Q_function, p_sarsa = learn(Sarsa_step, alpha=0.8, gamma=0.9)
-    render_single(env, p_sarsa)
+    # SARSA 训练 & 演示
+    Q_s, p_s = learn(Sarsa_step, episodes=5000, alpha=0.8, gamma=0.9)
+    print("SARSA 最终策略:", p_s)
+    render_single(env, p_s)
